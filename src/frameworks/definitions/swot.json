@@ -1,0 +1,6 @@
+{
+    "name": "SWOT Analysis",
+    "description": "Strengths, Weaknesses, Opportunities, Threats",
+    "prompt_template": "SWOT ANALYSIS: Provide a structured analysis:\n- Strengths: What internal advantages does this investment have?\n- Weaknesses: What internal factors could hurt it?\n- Opportunities: What external factors could help?\n- Threats: What external factors could hurt it?",
+    "output_fields": ["strengths", "weaknesses", "opportunities", "threats"]
+}

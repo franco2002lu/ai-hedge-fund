@@ -15,6 +15,10 @@ class PortfolioDecision(BaseModel):
     quantity: int = Field(description="Number of shares to trade")
     confidence: int = Field(description="Confidence 0-100")
     reasoning: str = Field(description="Reasoning for the decision")
+    strategic_review_impact: str = Field(
+        default="",
+        description="How the strategic review influenced this decision (if review data present)"
+    )
 
 
 class PortfolioManagerOutput(BaseModel):
@@ -208,34 +212,93 @@ def generate_trading_decision(
     compact_signals = _compact_signals({t: signals_by_ticker.get(t, {}) for t in tickers_for_llm})
     compact_allowed = {t: allowed_actions_full[t] for t in tickers_for_llm}
 
-    # Minimal prompt template
-    template = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "You are a portfolio manager.\n"
-                "Inputs per ticker: analyst signals and allowed actions with max qty (already validated).\n"
-                "Pick one allowed action per ticker and a quantity ≤ the max. "
-                "Keep reasoning very concise (max 100 chars). No cash or margin math. Return JSON only."
-            ),
-            (
-                "human",
-                "Signals:\n{signals}\n\n"
-                "Allowed:\n{allowed}\n\n"
-                "Format:\n"
-                "{{\n"
-                '  "decisions": {{\n'
-                '    "TICKER": {{"action":"...","quantity":int,"confidence":int,"reasoning":"..."}}\n'
-                "  }}\n"
-                "}}"
-            ),
-        ]
-    )
+    # Extract strategic review data if available
+    analyst_signals = state["data"]["analyst_signals"]
+    strategic_review = {}
+    for signal_agent_id, signals in analyst_signals.items():
+        if signal_agent_id.startswith("strategic_reviewer"):
+            strategic_review = signals
+            break
 
-    prompt_data = {
-        "signals": json.dumps(compact_signals, separators=(",", ":"), ensure_ascii=False),
-        "allowed": json.dumps(compact_allowed, separators=(",", ":"), ensure_ascii=False),
-    }
+    # Build strategic review context for prompt
+    review_context = ""
+    if strategic_review:
+        review_summary = {}
+        for ticker in tickers_for_llm:
+            if ticker in strategic_review:
+                data = strategic_review[ticker]
+                review_summary[ticker] = {
+                    "status": data.get("signal"),
+                    "confidence_adj": data.get("confidence_adjustment", 0),
+                    "concerns": data.get("key_concerns", [])[:3],  # Limit to 3 for brevity
+                    "contrarian": data.get("contrarian_thesis", ""),
+                }
+        if review_summary:
+            review_context = json.dumps(review_summary, separators=(",", ":"), ensure_ascii=False)
+
+    # Prompt varies based on whether strategic review is available
+    if review_context:
+        template = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a portfolio manager.\n"
+                    "Inputs per ticker: analyst signals, allowed actions with max qty, and strategic review.\n"
+                    "Pick one allowed action per ticker and a quantity ≤ the max.\n"
+                    "Keep reasoning very concise (max 100 chars). No cash or margin math.\n"
+                    "IMPORTANT: If strategic review data is provided, you MUST explain how it influenced "
+                    "your decision in the 'strategic_review_impact' field. Consider the concerns and "
+                    "confidence adjustments.\n"
+                    "Return JSON only."
+                ),
+                (
+                    "human",
+                    "Signals:\n{signals}\n\n"
+                    "Allowed:\n{allowed}\n\n"
+                    "Strategic Review:\n{review}\n\n"
+                    "Format:\n"
+                    "{{\n"
+                    '  "decisions": {{\n'
+                    '    "TICKER": {{"action":"...","quantity":int,"confidence":int,"reasoning":"...","strategic_review_impact":"..."}}\n'
+                    "  }}\n"
+                    "}}"
+                ),
+            ]
+        )
+        prompt_data = {
+            "signals": json.dumps(compact_signals, separators=(",", ":"), ensure_ascii=False),
+            "allowed": json.dumps(compact_allowed, separators=(",", ":"), ensure_ascii=False),
+            "review": review_context,
+        }
+    else:
+        # Original prompt without strategic review
+        template = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    "You are a portfolio manager.\n"
+                    "Inputs per ticker: analyst signals and allowed actions with max qty (already validated).\n"
+                    "Pick one allowed action per ticker and a quantity ≤ the max. "
+                    "Keep reasoning very concise (max 100 chars). No cash or margin math. Return JSON only."
+                ),
+                (
+                    "human",
+                    "Signals:\n{signals}\n\n"
+                    "Allowed:\n{allowed}\n\n"
+                    "Format:\n"
+                    "{{\n"
+                    '  "decisions": {{\n'
+                    '    "TICKER": {{"action":"...","quantity":int,"confidence":int,"reasoning":"..."}}\n'
+                    "  }}\n"
+                    "}}"
+                ),
+            ]
+        )
+        prompt_data = {
+            "signals": json.dumps(compact_signals, separators=(",", ":"), ensure_ascii=False),
+            "allowed": json.dumps(compact_allowed, separators=(",", ":"), ensure_ascii=False),
+        }
+
     prompt = template.invoke(prompt_data)
 
     # Default factory fills remaining tickers as hold if the LLM fails

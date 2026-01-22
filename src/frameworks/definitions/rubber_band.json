@@ -1,0 +1,6 @@
+{
+    "name": "Rubber Band Analysis",
+    "description": "Mean-reversion risk assessment",
+    "prompt_template": "RUBBER BAND ANALYSIS: How far has sentiment/valuation deviated from historical norms? Consider:\n- Deviation severity (1-10 scale)\n- Probability of mean reversion (0-100%)\n- Direction of stretch (bullish/bearish/neutral)\n- Historical context for comparison",
+    "output_fields": ["deviation_score", "reversion_probability", "stretched_direction", "historical_context"]
+}

@@ -19,6 +19,7 @@ from src.agents.rakesh_jhunjhunwala import rakesh_jhunjhunwala_agent
 from src.agents.mohnish_pabrai import mohnish_pabrai_agent
 from src.agents.news_sentiment import news_sentiment_agent
 from src.agents.growth_agent import growth_analyst_agent
+from src.agents.strategic_reviewer import strategic_reviewer_agent
 
 # Define analyst configuration - single source of truth
 ANALYST_CONFIG = {
@@ -165,6 +166,14 @@ ANALYST_CONFIG = {
         "agent_func": valuation_analyst_agent,
         "type": "analyst",
         "order": 16,
+    },
+    "strategic_reviewer": {
+        "display_name": "Strategic Reviewer",
+        "description": "Devil's Advocate",
+        "investing_style": "Applies contrarian analysis and decision frameworks to question analyst consensus before final decisions.",
+        "agent_func": strategic_reviewer_agent,
+        "type": "reviewer",  # Distinct from "analyst" - affects workflow routing
+        "order": 99,  # Runs after all analysts
     },
 }
 

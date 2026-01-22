@@ -1,0 +1,6 @@
+{
+    "name": "Black Swan Analysis",
+    "description": "Identify tail-risk events",
+    "prompt_template": "BLACK SWAN ANALYSIS: What low-probability, high-impact events could invalidate the thesis? List 2-3 tail-risk scenarios that analysts may have overlooked. Consider geopolitical, technological, regulatory, and market structure risks.",
+    "output_fields": ["tail_risk_scenarios", "probability_estimate", "potential_impact"]
+}

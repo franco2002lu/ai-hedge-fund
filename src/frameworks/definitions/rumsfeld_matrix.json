@@ -1,0 +1,6 @@
+{
+    "name": "Rumsfeld Matrix",
+    "description": "Categorize knowns and unknowns",
+    "prompt_template": "RUMSFELD MATRIX: Categorize the information landscape:\n- Known Knowns: Facts we're confident about\n- Known Unknowns: Questions we know we need answered\n- Unknown Unknowns: What blind spots might we have? What are we not even thinking about?",
+    "output_fields": ["known_knowns", "known_unknowns", "unknown_unknowns"]
+}

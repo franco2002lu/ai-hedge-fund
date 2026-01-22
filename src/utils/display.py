@@ -393,3 +393,166 @@ def format_backtest_row(
             f"{Fore.RED}{short_shares:,.0f}{Style.RESET_ALL}",    # Short Shares
             f"{Fore.YELLOW}{position_value:,.2f}{Style.RESET_ALL}",
         ]
+
+
+def print_strategic_review_output(review_data: dict, ticker: str) -> None:
+    """
+    Print strategic review with color-coded status.
+
+    Args:
+        review_data: Dictionary containing strategic review for all tickers
+        ticker: The specific ticker to display
+    """
+    status_colors = {
+        "validated": Fore.GREEN,
+        "caution": Fore.YELLOW,
+        "warning": Fore.RED,
+        "critical": Fore.MAGENTA + Style.BRIGHT,
+    }
+
+    review = review_data.get(ticker, {})
+    status = review.get("signal", "unknown")
+    color = status_colors.get(status, Fore.WHITE)
+
+    print(f"\n{'=' * 60}")
+    print(f"{Fore.WHITE}{Style.BRIGHT}STRATEGIC REVIEW: {Fore.CYAN}{ticker}{Style.RESET_ALL}")
+    print(f"{'=' * 60}")
+    print(f"Status: {color}{status.upper()}{Style.RESET_ALL}")
+    print(f"Confidence Adjustment: {review.get('confidence_adjustment', 0):+d}")
+    print(f"Consensus Type: {review.get('consensus_type', 'unknown')}")
+    frameworks = review.get("frameworks_applied", [])
+    print(f"Frameworks Applied: {', '.join(frameworks) if frameworks else 'None'}")
+
+    print(f"\n{Fore.CYAN}Key Concerns:{Style.RESET_ALL}")
+    for concern in review.get("key_concerns", []):
+        print(f"  {Fore.YELLOW}\u2022{Style.RESET_ALL} {concern}")
+
+    print(f"\n{Fore.YELLOW}Contrarian Thesis:{Style.RESET_ALL}")
+    print(f"  {review.get('contrarian_thesis', 'N/A')}")
+
+    print(f"\n{Fore.WHITE}Reasoning:{Style.RESET_ALL}")
+    print(f"  {review.get('reasoning', 'N/A')}")
+
+    # Print framework-specific analyses if available
+    if review.get("swot_analysis"):
+        print_swot_matrix(review["swot_analysis"])
+    if review.get("pre_mortem_analysis"):
+        print_pre_mortem_analysis(review["pre_mortem_analysis"])
+    if review.get("rubber_band_analysis"):
+        print_rubber_band_analysis(review["rubber_band_analysis"])
+
+
+def print_swot_matrix(swot: dict) -> None:
+    """
+    Print SWOT analysis as a 2x2 grid with colored quadrants.
+
+    Args:
+        swot: Dictionary with strengths, weaknesses, opportunities, threats
+    """
+    if not swot:
+        return
+
+    print(f"\n{Fore.CYAN}SWOT ANALYSIS{Style.RESET_ALL}")
+    print("\u250c" + "\u2500" * 30 + "\u252c" + "\u2500" * 30 + "\u2510")
+
+    # Strengths (Green) | Weaknesses (Red)
+    print(f"\u2502 {Fore.GREEN}STRENGTHS{Style.RESET_ALL}" + " " * 20 +
+          f"\u2502 {Fore.RED}WEAKNESSES{Style.RESET_ALL}" + " " * 19 + "\u2502")
+    strengths = swot.get("strengths", []) or []
+    weaknesses = swot.get("weaknesses", []) or []
+    max_len = max(len(strengths), len(weaknesses), 1)
+    for i in range(max_len):
+        s = strengths[i][:26] if i < len(strengths) else ""
+        w = weaknesses[i][:26] if i < len(weaknesses) else ""
+        print(f"\u2502 \u2022 {s:<26} \u2502 \u2022 {w:<26} \u2502")
+
+    print("\u251c" + "\u2500" * 30 + "\u253c" + "\u2500" * 30 + "\u2524")
+
+    # Opportunities (Blue) | Threats (Yellow)
+    print(f"\u2502 {Fore.BLUE}OPPORTUNITIES{Style.RESET_ALL}" + " " * 16 +
+          f"\u2502 {Fore.YELLOW}THREATS{Style.RESET_ALL}" + " " * 22 + "\u2502")
+    opportunities = swot.get("opportunities", []) or []
+    threats = swot.get("threats", []) or []
+    max_len = max(len(opportunities), len(threats), 1)
+    for i in range(max_len):
+        o = opportunities[i][:26] if i < len(opportunities) else ""
+        t = threats[i][:26] if i < len(threats) else ""
+        print(f"\u2502 \u2022 {o:<26} \u2502 \u2022 {t:<26} \u2502")
+
+    print("\u2514" + "\u2500" * 30 + "\u2534" + "\u2500" * 30 + "\u2518")
+
+
+def print_pre_mortem_analysis(pre_mortem: dict) -> None:
+    """
+    Print pre-mortem analysis with risk indicators.
+
+    Args:
+        pre_mortem: Dictionary with failure_scenarios, black_swan_candidates, risk_level
+    """
+    if not pre_mortem:
+        return
+
+    risk_colors = {
+        "low": Fore.GREEN,
+        "medium": Fore.YELLOW,
+        "high": Fore.RED,
+        "critical": Fore.MAGENTA + Style.BRIGHT,
+    }
+
+    risk_level = pre_mortem.get("risk_level", "unknown")
+    color = risk_colors.get(risk_level, Fore.WHITE)
+
+    print(f"\n{Fore.CYAN}PRE-MORTEM ANALYSIS{Style.RESET_ALL}")
+    print(f"Risk Level: {color}{risk_level.upper()}{Style.RESET_ALL}")
+
+    print(f"\n{Fore.RED}Failure Scenarios:{Style.RESET_ALL}")
+    for scenario in pre_mortem.get("failure_scenarios", []):
+        if isinstance(scenario, dict):
+            prob = scenario.get("probability", "?")
+            desc = scenario.get("scenario", "Unknown")
+            print(f"  [{prob}] {desc}")
+        else:
+            print(f"  \u2022 {scenario}")
+
+    print(f"\n{Fore.MAGENTA}Black Swan Candidates:{Style.RESET_ALL}")
+    for swan in pre_mortem.get("black_swan_candidates", []):
+        print(f"  \u26a0 {swan}")
+
+
+def print_rubber_band_analysis(rubber_band: dict) -> None:
+    """
+    Print rubber band analysis with deviation meter.
+
+    Args:
+        rubber_band: Dictionary with deviation_score, reversion_probability, stretched_direction
+    """
+    if not rubber_band:
+        return
+
+    print(f"\n{Fore.CYAN}RUBBER BAND ANALYSIS{Style.RESET_ALL}")
+
+    deviation = rubber_band.get("deviation_score", 5)
+    direction = rubber_band.get("stretched_direction", "neutral")
+    reversion_prob = rubber_band.get("reversion_probability", 50)
+
+    # Visual deviation meter
+    meter = "["
+    for i in range(1, 11):
+        if i <= deviation:
+            meter += "\u2588"  # Full block
+        else:
+            meter += "\u2591"  # Light shade
+    meter += "]"
+
+    direction_colors = {
+        "bullish": Fore.GREEN,
+        "bearish": Fore.RED,
+        "neutral": Fore.YELLOW,
+    }
+    color = direction_colors.get(direction, Fore.WHITE)
+
+    print(f"Deviation: {meter} {deviation}/10")
+    print(f"Direction: {color}{direction.upper()}{Style.RESET_ALL}")
+    print(f"Reversion Probability: {reversion_prob}%")
+    context = rubber_band.get("historical_context", "N/A")
+    print(f"Context: {context}")

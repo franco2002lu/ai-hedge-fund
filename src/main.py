@@ -7,9 +7,10 @@ from colorama import Fore, Style, init
 import questionary
 from src.agents.portfolio_manager import portfolio_management_agent
 from src.agents.risk_manager import risk_management_agent
+from src.agents.strategic_reviewer import strategic_reviewer_agent
 from src.graph.state import AgentState
 from src.utils.display import print_trading_output
-from src.utils.analysts import ANALYST_ORDER, get_analyst_nodes
+from src.utils.analysts import ANALYST_ORDER, ANALYST_CONFIG, get_analyst_nodes
 from src.utils.progress import progress
 from src.utils.visualize import save_graph_as_png
 from src.cli.input import (
@@ -52,13 +53,18 @@ def run_hedge_fund(
     selected_analysts: list[str] = [],
     model_name: str = "gpt-4.1",
     model_provider: str = "OpenAI",
+    include_strategic_review: bool = True,
+    review_mode: str = "balanced",
 ):
     # Start progress tracking
     progress.start()
 
     try:
         # Build workflow (default to all analysts when none provided)
-        workflow = create_workflow(selected_analysts if selected_analysts else None)
+        workflow = create_workflow(
+            selected_analysts if selected_analysts else None,
+            include_strategic_review=include_strategic_review,
+        )
         agent = workflow.compile()
 
         final_state = agent.invoke(
@@ -79,6 +85,7 @@ def run_hedge_fund(
                     "show_reasoning": show_reasoning,
                     "model_name": model_name,
                     "model_provider": model_provider,
+                    "review_mode": review_mode,
                 },
             },
         )
@@ -97,8 +104,16 @@ def start(state: AgentState):
     return state
 
 
-def create_workflow(selected_analysts=None):
-    """Create the workflow with selected analysts."""
+def create_workflow(selected_analysts=None, include_strategic_review: bool = True):
+    """Create the workflow with selected analysts.
+
+    Args:
+        selected_analysts: List of analyst keys to include, or None for all
+        include_strategic_review: Whether to include the strategic reviewer agent
+
+    Returns:
+        Compiled workflow StateGraph
+    """
     workflow = StateGraph(AgentState)
     workflow.add_node("start_node", start)
 
@@ -108,8 +123,12 @@ def create_workflow(selected_analysts=None):
     # Default to all analysts if none selected
     if selected_analysts is None:
         selected_analysts = list(analyst_nodes.keys())
-    # Add selected analyst nodes
+
+    # Add selected analyst nodes (exclude reviewer type from parallel phase)
     for analyst_key in selected_analysts:
+        # Skip reviewer-type agents from the analyst phase
+        if ANALYST_CONFIG.get(analyst_key, {}).get("type") == "reviewer":
+            continue
         node_name, node_func = analyst_nodes[analyst_key]
         workflow.add_node(node_name, node_func)
         workflow.add_edge("start_node", node_name)
@@ -118,10 +137,24 @@ def create_workflow(selected_analysts=None):
     workflow.add_node("risk_management_agent", risk_management_agent)
     workflow.add_node("portfolio_manager", portfolio_management_agent)
 
-    # Connect selected analysts to risk management
-    for analyst_key in selected_analysts:
-        node_name = analyst_nodes[analyst_key][0]
-        workflow.add_edge(node_name, "risk_management_agent")
+    if include_strategic_review:
+        # Add strategic reviewer between analysts and risk manager
+        workflow.add_node("strategic_reviewer_agent", strategic_reviewer_agent)
+
+        # Connect analysts → strategic_reviewer
+        for analyst_key in selected_analysts:
+            if ANALYST_CONFIG.get(analyst_key, {}).get("type") != "reviewer":
+                node_name = analyst_nodes[analyst_key][0]
+                workflow.add_edge(node_name, "strategic_reviewer_agent")
+
+        # Connect strategic_reviewer → risk_manager
+        workflow.add_edge("strategic_reviewer_agent", "risk_management_agent")
+    else:
+        # Original flow: analysts → risk_manager directly
+        for analyst_key in selected_analysts:
+            if ANALYST_CONFIG.get(analyst_key, {}).get("type") != "reviewer":
+                node_name = analyst_nodes[analyst_key][0]
+                workflow.add_edge(node_name, "risk_management_agent")
 
     workflow.add_edge("risk_management_agent", "portfolio_manager")
     workflow.add_edge("portfolio_manager", END)
@@ -175,5 +208,7 @@ if __name__ == "__main__":
         selected_analysts=inputs.selected_analysts,
         model_name=inputs.model_name,
         model_provider=inputs.model_provider,
+        include_strategic_review=inputs.include_strategic_review,
+        review_mode=inputs.review_mode,
     )
     print_trading_output(result)

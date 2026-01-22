@@ -1,0 +1,6 @@
+{
+    "name": "Pre-Mortem Analysis",
+    "description": "Imagine the investment has failed. What went wrong?",
+    "prompt_template": "PRE-MORTEM ANALYSIS: Imagine this investment has failed spectacularly in 12 months. What went wrong? List 3-5 specific failure scenarios with estimated probability (low/medium/high) and potential impact.",
+    "output_fields": ["failure_scenarios", "black_swan_candidates", "risk_level"]
+}

@@ -221,6 +221,8 @@ class CLIInputs:
     margin_requirement: float
     show_reasoning: bool = False
     show_agent_graph: bool = False
+    include_strategic_review: bool = True
+    review_mode: str = "balanced"
     raw_args: Optional[argparse.Namespace] = None
 
 
@@ -260,6 +262,20 @@ def parse_cli_inputs(
     if include_graph_flag:
         parser.add_argument("--show-agent-graph", action="store_true", help="Show the agent graph")
 
+    # Strategic review flags
+    parser.add_argument(
+        "--no-strategic-review",
+        action="store_true",
+        help="Bypass the strategic reviewer agent"
+    )
+    parser.add_argument(
+        "--review-mode",
+        type=str,
+        choices=["conservative", "balanced", "aggressive"],
+        default="balanced",
+        help="Strategic review intensity: conservative (max skepticism), balanced (default), aggressive (light touch)"
+    )
+
     args = parser.parse_args()
 
     # Normalize parsed values
@@ -282,6 +298,8 @@ def parse_cli_inputs(
         margin_requirement=getattr(args, "margin_requirement", 0.0),
         show_reasoning=getattr(args, "show_reasoning", False),
         show_agent_graph=getattr(args, "show_agent_graph", False),
+        include_strategic_review=not getattr(args, "no_strategic_review", False),
+        review_mode=getattr(args, "review_mode", "balanced"),
         raw_args=args,
     )
 
